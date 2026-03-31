@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Contact } from "@/types/contact";
 import type { ContactFormData } from "@/lib/validation/contact";
+import { normalizePhone } from "@/lib/utils";
 
 export function useContacts(orgId: string | undefined, search?: string) {
   return useQuery({
@@ -17,9 +18,11 @@ export function useContacts(orgId: string | undefined, search?: string) {
         .order("name", { ascending: true });
 
       if (search) {
-        query = query.or(
-          `name.ilike.%${search}%,phone_number.ilike.%${search}%`
-        );
+        const normalized = normalizePhone(search);
+        const phoneFilters = normalized !== search
+          ? `phone_number.ilike.%${search}%,phone_number.ilike.%${normalized}%`
+          : `phone_number.ilike.%${search}%`;
+        query = query.or(`name.ilike.%${search}%,${phoneFilters}`);
       }
 
       const { data, error } = await query;
