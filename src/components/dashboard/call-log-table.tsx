@@ -158,6 +158,7 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
                       placeholder="—"
                       onSave={(v) => handleInlineUpdate(log.id, "question", v)}
                       multiline
+                      maxLength={100}
                     />
                   </div>
                 )}
@@ -169,6 +170,7 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
                       placeholder="—"
                       onSave={(v) => handleInlineUpdate(log.id, "answer", v)}
                       multiline
+                      maxLength={100}
                     />
                   </div>
                 )}
@@ -234,6 +236,7 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
                     placeholder="Click to add question..."
                     onSave={(value) => handleInlineUpdate(log.id, "question", value)}
                     multiline
+                    maxLength={100}
                   />
                 </TableCell>
                 <TableCell className="whitespace-normal break-words max-w-[280px]">
@@ -242,6 +245,7 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
                     placeholder="Click to add answer..."
                     onSave={(value) => handleInlineUpdate(log.id, "answer", value)}
                     multiline
+                    maxLength={100}
                   />
                 </TableCell>
                 <TableCell className="text-center">

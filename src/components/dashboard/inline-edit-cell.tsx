@@ -2,12 +2,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { ExpandableText } from "./expandable-text";
 
 interface InlineEditCellProps {
   value: string;
   placeholder?: string;
   onSave: (value: string) => void;
   multiline?: boolean;
+  maxLength?: number;
 }
 
 export function InlineEditCell({
@@ -15,6 +17,7 @@ export function InlineEditCell({
   placeholder = "—",
   onSave,
   multiline,
+  maxLength,
 }: InlineEditCellProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -83,7 +86,9 @@ export function InlineEditCell({
       )}
       title="Click to edit"
     >
-      {value || placeholder}
+      {value
+        ? (maxLength ? <ExpandableText text={value} maxLength={maxLength} /> : value)
+        : placeholder}
     </span>
   );
 }
