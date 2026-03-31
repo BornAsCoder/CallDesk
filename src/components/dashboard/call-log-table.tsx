@@ -123,6 +123,7 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
               )}
               <div className="ml-auto flex items-center gap-2">
                 <Checkbox
+                  className="size-6"
                   checked={log.is_sorted}
                   onCheckedChange={(checked) => handleSortedToggle(log.id, checked as boolean)}
                 />
@@ -250,6 +251,7 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
                 </TableCell>
                 <TableCell className="text-center">
                   <Checkbox
+                    className="size-6"
                     checked={log.is_sorted}
                     onCheckedChange={(checked) =>
                       handleSortedToggle(log.id, checked as boolean)
