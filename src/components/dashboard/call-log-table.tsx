@@ -95,7 +95,94 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
 
   return (
     <>
-      <div className="rounded-lg border">
+      {/* ── Mobile card list (< md) ───────────────────────────── */}
+      <div className="flex flex-col gap-2 md:hidden">
+        {callLogs.map((log) => (
+          <div
+            key={log.id}
+            className={[
+              "rounded-lg border p-3 space-y-2",
+              log.is_sorted ? "opacity-60" : "",
+            ].join(" ")}
+          >
+            {/* Top row: icon + number + name + actions */}
+            <div className="flex items-center gap-2">
+              {log.call_direction === "inbound" ? (
+                <PhoneIncoming className="h-4 w-4 shrink-0 text-blue-500" />
+              ) : (
+                <PhoneOutgoing className="h-4 w-4 shrink-0 text-green-500" />
+              )}
+              <a
+                href={`tel:${log.phone_number}`}
+                className="font-mono text-sm font-medium hover:underline hover:text-blue-600 transition-colors"
+              >
+                {log.phone_number}
+              </a>
+              {log.caller_name && (
+                <span className="text-sm text-muted-foreground truncate">· {log.caller_name}</span>
+              )}
+              <div className="ml-auto flex items-center gap-2">
+                <Checkbox
+                  checked={log.is_sorted}
+                  onCheckedChange={(checked) => handleSortedToggle(log.id, checked as boolean)}
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleCopy(log)}>
+                      <Copy className="mr-2 h-4 w-4" />Copy
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setEditingLog(log)}>
+                      <Pencil className="mr-2 h-4 w-4" />Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(log.id)}>
+                      <Trash2 className="mr-2 h-4 w-4" />Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            {/* Question / Answer inline edit */}
+            {(log.question || log.answer) && (
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {log.question && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-0.5">Question</p>
+                    <InlineEditCell
+                      value={log.question}
+                      placeholder="—"
+                      onSave={(v) => handleInlineUpdate(log.id, "question", v)}
+                      multiline
+                    />
+                  </div>
+                )}
+                {log.answer && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-0.5">Answer</p>
+                    <InlineEditCell
+                      value={log.answer}
+                      placeholder="—"
+                      onSave={(v) => handleInlineUpdate(log.id, "answer", v)}
+                      multiline
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            {!log.question && !log.answer && (
+              <p className="text-xs text-muted-foreground italic">No question/answer — tap Edit to add</p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Desktop table (≥ md) ──────────────────────────────── */}
+      <div className="hidden md:block rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow className="divide-x divide-border">

@@ -56,10 +56,10 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <DateFilter date={date} onDateChange={setDate} />
           <ExportMenu callLogs={callLogs || []} date={date} />
-          <Button onClick={() => setShowAddForm(true)} className="gap-2">
+          <Button onClick={() => setShowAddForm(true)} className="gap-2 sm:ml-auto">
             <Plus className="h-4 w-4" />
             Log Call
           </Button>
