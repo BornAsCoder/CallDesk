@@ -118,11 +118,13 @@ export function useCreateCallLog(orgId: string | undefined) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: data.id,
           phone_number: data.phone_number,
           caller_name: data.caller_name,
           question: data.question,
           answer: data.answer,
           call_direction: data.call_direction,
+          is_sorted: data.is_sorted,
         }),
       }).catch(() => {});
 
