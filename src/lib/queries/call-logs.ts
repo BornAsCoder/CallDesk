@@ -106,6 +106,8 @@ export function useCreateCallLog(orgId: string | undefined) {
           is_sorted: formData.is_sorted,
           call_direction: formData.call_direction,
           call_date: formData.call_date || new Date().toISOString(),
+          recording_url: formData.recording_url || null,
+          transcription: formData.transcription || null,
           created_by: user?.id,
         })
         .select()
@@ -125,6 +127,8 @@ export function useCreateCallLog(orgId: string | undefined) {
           answer: data.answer,
           call_direction: data.call_direction,
           is_sorted: data.is_sorted,
+          recording_url: data.recording_url,
+          transcription: data.transcription,
         }),
       })
         .then((r) => r.json())
@@ -224,6 +228,8 @@ export function useUpdateCallLog(orgId?: string) {
             answer: data.answer,
             call_direction: data.call_direction,
             is_sorted: data.is_sorted,
+            recording_url: data.recording_url,
+            transcription: data.transcription,
           }),
         }).catch(() => {});
       }

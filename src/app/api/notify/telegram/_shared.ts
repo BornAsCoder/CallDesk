@@ -6,6 +6,8 @@ interface CallLogData {
   answer?: string | null;
   call_direction?: string;
   is_sorted?: boolean;
+  recording_url?: string | null;
+  transcription?: string | null;
 }
 
 export function buildTelegramMessage(data: CallLogData) {
@@ -16,6 +18,8 @@ export function buildTelegramMessage(data: CallLogData) {
     `\ud83d\udcf1 ${data.caller_name ? `${data.caller_name} (${data.phone_number})` : data.phone_number}`,
     data.question ? `\u2753 ${data.question}` : null,
     data.answer ? `\ud83d\udcac ${data.answer}` : null,
+    data.recording_url ? `\ud83c\udfa4 Voicemail attached` : null,
+    data.transcription ? `\ud83d\udcdd ${data.transcription}` : null,
   ]
     .filter(Boolean)
     .join("\n");

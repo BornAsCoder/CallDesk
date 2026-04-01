@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { callLogSchema, type CallLogFormData } from "@/lib/validation/call-log";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PhoneAutocomplete } from "@/components/contacts/phone-autocomplete";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mic, X } from "lucide-react";
 
 interface CallLogFormProps {
   open: boolean;
@@ -40,6 +42,9 @@ export function CallLogForm({
   isEditing,
   orgId,
 }: CallLogFormProps) {
+  const [voicemailFile, setVoicemailFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const form = useForm<CallLogFormData>({
     resolver: zodResolver(callLogSchema),
     defaultValues: {
@@ -49,6 +54,8 @@ export function CallLogForm({
       answer: "",
       is_sorted: false,
       call_direction: "inbound",
+      recording_url: "",
+      transcription: "",
       ...defaultValues,
     },
   });
@@ -62,8 +69,26 @@ export function CallLogForm({
     formState: { errors, isSubmitting },
   } = form;
 
+  async function uploadVoicemail(file: File): Promise<string> {
+    const supabase = createClient();
+    const ext = file.name.split(".").pop()?.toLowerCase() || "mp3";
+    const path = `${orgId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("voicemails")
+      .upload(path, file, { contentType: file.type || `audio/${ext === "m4a" ? "mp4" : ext}` });
+    if (error) throw error;
+    const { data } = supabase.storage
+      .from("voicemails")
+      .getPublicUrl(path);
+    return data.publicUrl;
+  }
+
   async function onFormSubmit(data: CallLogFormData) {
+    if (voicemailFile) {
+      data.recording_url = await uploadVoicemail(voicemailFile);
+    }
     await onSubmit(data);
+    setVoicemailFile(null);
     reset();
     onOpenChange(false);
   }
@@ -134,6 +159,70 @@ export function CallLogForm({
               rows={3}
             />
           </div>
+
+          {/* Voicemail section — collapsible */}
+          <details className="rounded-lg border p-3 space-y-3">
+            <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-muted-foreground select-none">
+              <Mic className="h-4 w-4" />
+              Voicemail &amp; Transcription
+            </summary>
+
+            <div className="space-y-3 pt-1">
+              <div className="space-y-2">
+                <Label>Voice Recording</Label>
+                {watch("recording_url") && !voicemailFile ? (
+                  <div className="flex items-center gap-2">
+                    <audio controls src={watch("recording_url")} className="h-8 flex-1" />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => setValue("recording_url", "")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="audio/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setVoicemailFile(file);
+                      }}
+                      className="text-sm"
+                    />
+                    {voicemailFile && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => {
+                          setVoicemailFile(null);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Transcription</Label>
+                <Textarea
+                  {...register("transcription")}
+                  placeholder="Voicemail transcription (optional)"
+                  rows={2}
+                />
+              </div>
+            </div>
+          </details>
 
           <div className="flex items-center gap-2">
             <input

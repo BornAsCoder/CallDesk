@@ -18,7 +18,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash2, PhoneIncoming, PhoneOutgoing, Copy } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, PhoneIncoming, PhoneOutgoing, Copy, Mic } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { CallLogWithContact } from "@/types/call-log";
 import { useUpdateCallLog, useDeleteCallLog } from "@/lib/queries/call-logs";
 import { CallLogForm } from "./call-log-form";
@@ -180,6 +186,16 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
             {!log.question && !log.answer && (
               <p className="text-xs text-muted-foreground italic">No question/answer — tap Edit to add</p>
             )}
+            {(log.recording_url || log.transcription) && (
+              <div className="space-y-1 text-sm">
+                {log.recording_url && (
+                  <audio controls src={log.recording_url} className="h-8 w-full" />
+                )}
+                {log.transcription && (
+                  <p className="text-xs text-muted-foreground italic">{log.transcription}</p>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -209,11 +225,30 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
                 ].join(" ")}
               >
                 <TableCell className="px-3">
-                  {log.call_direction === "inbound" ? (
-                    <PhoneIncoming className="h-4 w-4 text-blue-500" />
-                  ) : (
-                    <PhoneOutgoing className="h-4 w-4 text-green-500" />
-                  )}
+                  <div className="flex items-center gap-1">
+                    {log.call_direction === "inbound" ? (
+                      <PhoneIncoming className="h-4 w-4 text-blue-500" />
+                    ) : (
+                      <PhoneOutgoing className="h-4 w-4 text-green-500" />
+                    )}
+                    {(log.recording_url || log.transcription) && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Mic className="h-3 w-3 text-orange-500" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs space-y-2">
+                            {log.recording_url && (
+                              <audio controls src={log.recording_url} className="h-8 w-48" />
+                            )}
+                            {log.transcription && (
+                              <p className="text-xs">{log.transcription}</p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="font-mono text-sm">
                   <a
@@ -303,6 +338,8 @@ export function CallLogTable({ callLogs, isLoading, orgId }: CallLogTableProps) 
             answer: editingLog.answer || "",
             is_sorted: editingLog.is_sorted,
             call_direction: editingLog.call_direction,
+            recording_url: editingLog.recording_url || "",
+            transcription: editingLog.transcription || "",
           }}
           onSubmit={async (data) => {
             await updateCallLog.mutateAsync({ id: editingLog.id, ...data });
