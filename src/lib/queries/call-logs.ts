@@ -112,6 +112,20 @@ export function useCreateCallLog(orgId: string | undefined) {
         .single();
 
       if (error) throw error;
+
+      // Fire Telegram notification (non-blocking, best-effort)
+      fetch("/api/notify/telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone_number: data.phone_number,
+          caller_name: data.caller_name,
+          question: data.question,
+          answer: data.answer,
+          call_direction: data.call_direction,
+        }),
+      }).catch(() => {});
+
       return data;
     },
     onSuccess: () => {
