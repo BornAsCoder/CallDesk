@@ -250,10 +250,10 @@ export function useDeleteCallLog() {
     mutationFn: async (id: string) => {
       const supabase = createClient();
 
-      // Fetch telegram_message_id before deleting
+      // Fetch telegram_message_id and recording_url before deleting
       const { data: log } = await supabase
         .from("call_logs")
-        .select("telegram_message_id")
+        .select("telegram_message_id, recording_url")
         .eq("id", id)
         .single();
 
@@ -270,6 +270,15 @@ export function useDeleteCallLog() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message_id: log.telegram_message_id }),
+        }).catch(() => {});
+      }
+
+      // Delete voicemail from storage (best-effort)
+      if (log?.recording_url) {
+        fetch("/api/voicemail/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recording_url: log.recording_url }),
         }).catch(() => {});
       }
     },
@@ -295,14 +304,13 @@ export function useDeleteAllCallLogs() {
       const dayStart = startOfDay(date).toISOString();
       const dayEnd = endOfDay(date).toISOString();
 
-      // Fetch telegram_message_ids before deleting
+      // Fetch telegram_message_ids and recording_urls before deleting
       const { data: logs } = await supabase
         .from("call_logs")
-        .select("telegram_message_id")
+        .select("telegram_message_id, recording_url")
         .eq("organization_id", orgId)
         .gte("call_date", dayStart)
-        .lt("call_date", dayEnd)
-        .not("telegram_message_id", "is", null);
+        .lt("call_date", dayEnd);
 
       const { error } = await supabase
         .from("call_logs")
@@ -313,14 +321,23 @@ export function useDeleteAllCallLogs() {
 
       if (error) throw error;
 
-      // Delete from Telegram (best-effort, parallel)
+      // Cleanup Telegram messages and voicemails (best-effort, parallel)
       if (logs?.length) {
         for (const log of logs) {
-          fetch("/api/notify/telegram/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message_id: log.telegram_message_id }),
-          }).catch(() => {});
+          if (log.telegram_message_id) {
+            fetch("/api/notify/telegram/delete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message_id: log.telegram_message_id }),
+            }).catch(() => {});
+          }
+          if (log.recording_url) {
+            fetch("/api/voicemail/delete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ recording_url: log.recording_url }),
+            }).catch(() => {});
+          }
         }
       }
     },

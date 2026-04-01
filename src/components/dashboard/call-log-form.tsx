@@ -4,7 +4,6 @@ import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { callLogSchema, type CallLogFormData } from "@/lib/validation/call-log";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,17 +69,19 @@ export function CallLogForm({
   } = form;
 
   async function uploadVoicemail(file: File): Promise<string> {
-    const supabase = createClient();
-    const ext = file.name.split(".").pop()?.toLowerCase() || "mp3";
-    const path = `${orgId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("voicemails")
-      .upload(path, file, { contentType: file.type || `audio/${ext === "m4a" ? "mp4" : ext}` });
-    if (error) throw error;
-    const { data } = supabase.storage
-      .from("voicemails")
-      .getPublicUrl(path);
-    return data.publicUrl;
+    const ext = file.name.split(".").pop()?.toLowerCase() || "m4a";
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("org_id", orgId || "");
+    formData.append("ext", ext);
+
+    const res = await fetch("/api/voicemail/upload", { method: "POST", body: formData });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Upload failed");
+    }
+    const { url } = await res.json();
+    return url;
   }
 
   async function onFormSubmit(data: CallLogFormData) {

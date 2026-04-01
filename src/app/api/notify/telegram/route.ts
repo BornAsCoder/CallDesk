@@ -29,18 +29,34 @@ export async function POST(request: Request) {
   const result = await res.json();
   const message_id = result.result?.message_id;
 
-  // Send voicemail as playable audio if attached
+  // Send voicemail as playable voice message if attached
   if (data.recording_url) {
-    await fetch(`https://api.telegram.org/bot${token}/sendAudio`, {
+    // Use sendVoice for inline playback in Telegram (plays without downloading)
+    const voiceRes = await fetch(`https://api.telegram.org/bot${token}/sendVoice`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        audio: data.recording_url,
-        title: `Voicemail — ${data.caller_name || data.phone_number}`,
+        voice: data.recording_url,
+        caption: data.transcription || undefined,
         reply_to_message_id: message_id,
       }),
-    }).catch(() => {});
+    }).catch(() => null);
+
+    // Fallback to sendAudio if sendVoice fails (format not supported)
+    if (voiceRes && !voiceRes.ok) {
+      await fetch(`https://api.telegram.org/bot${token}/sendAudio`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          audio: data.recording_url,
+          title: `Voicemail — ${data.caller_name || data.phone_number}`,
+          caption: data.transcription || undefined,
+          reply_to_message_id: message_id,
+        }),
+      }).catch(() => {});
+    }
   }
 
   return NextResponse.json({ ok: true, message_id });
