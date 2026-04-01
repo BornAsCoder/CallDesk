@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Contact } from "@/types/contact";
 import type { ContactFormData } from "@/lib/validation/contact";
-import { normalizePhone } from "@/lib/utils";
 
 export function useContacts(orgId: string | undefined, search?: string) {
   return useQuery({
@@ -18,11 +17,12 @@ export function useContacts(orgId: string | undefined, search?: string) {
         .order("name", { ascending: true });
 
       if (search) {
-        const normalized = normalizePhone(search);
-        const phoneFilters = normalized !== search
-          ? `phone_number.ilike.%${search}%,phone_number.ilike.%${normalized}%`
-          : `phone_number.ilike.%${search}%`;
-        query = query.or(`name.ilike.%${search}%,${phoneFilters}`);
+        // Strip leading zero(s) so "074660977" → "74660977"
+        // This matches both stored formats: "07466…" and "+447466…"
+        const phoneSearch = search.replace(/^0+/, "") || search;
+        query = query.or(
+          `name.ilike.%${search}%,phone_number.ilike.%${phoneSearch}%`
+        );
       }
 
       const { data, error } = await query;
@@ -118,6 +118,25 @@ export function useDeleteContact() {
         .from("contacts")
         .delete()
         .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+  });
+}
+
+export function useDeleteAllContacts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orgId: string) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("contacts")
+        .delete()
+        .eq("organization_id", orgId);
 
       if (error) throw error;
     },

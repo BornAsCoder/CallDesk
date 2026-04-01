@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { buildTelegramMessage } from "./_shared";
 
 export async function POST(request: Request) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -9,15 +8,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Telegram not configured" }, { status: 500 });
   }
 
-  const data = await request.json();
-  const { text, reply_markup } = buildTelegramMessage(data);
+  const { message_id } = await request.json();
+
+  if (!message_id) {
+    return NextResponse.json({ ok: true });
+  }
 
   const res = await fetch(
-    `https://api.telegram.org/bot${token}/sendMessage`,
+    `https://api.telegram.org/bot${token}/deleteMessage`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, reply_markup }),
+      body: JSON.stringify({ chat_id: chatId, message_id }),
     }
   );
 
@@ -26,6 +28,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err }, { status: 500 });
   }
 
-  const result = await res.json();
-  return NextResponse.json({ ok: true, message_id: result.result?.message_id });
+  return NextResponse.json({ ok: true });
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useUser } from "@/hooks/use-user";
-import { useCallLogs, useCallLogStats, useCreateCallLog } from "@/lib/queries/call-logs";
+import { useCallLogs, useCallLogStats, useCreateCallLog, useDeleteAllCallLogs } from "@/lib/queries/call-logs";
 import { useRealtimeCallLogs } from "@/hooks/use-realtime-call-logs";
 import { CallLogTable } from "@/components/dashboard/call-log-table";
 import { CallLogStats } from "@/components/dashboard/call-log-stats";
@@ -10,8 +10,19 @@ import { CallLogForm } from "@/components/dashboard/call-log-form";
 import { DateFilter } from "@/components/dashboard/date-filter";
 import { ExportMenu } from "@/components/dashboard/export-menu";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import type { CallLogFormData } from "@/lib/validation/call-log";
 
 export default function DashboardPage() {
@@ -25,6 +36,7 @@ export default function DashboardPage() {
   const { data: callLogs, isLoading } = useCallLogs(orgId, date);
   const { data: stats, isLoading: statsLoading } = useCallLogStats(orgId, date);
   const createCallLog = useCreateCallLog(orgId);
+  const deleteAllCallLogs = useDeleteAllCallLogs();
 
   useRealtimeCallLogs(orgId);
 
@@ -59,6 +71,41 @@ export default function DashboardPage() {
         <div className="flex flex-wrap items-center gap-2">
           <DateFilter date={date} onDateChange={setDate} />
           <ExportMenu callLogs={callLogs || []} date={date} />
+          {allLogs.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Delete All
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete all calls for this day?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete {allLogs.length} call log{allLogs.length !== 1 ? "s" : ""} for {date.toLocaleDateString()}. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      if (!orgId) return;
+                      deleteAllCallLogs.mutate(
+                        { orgId, date },
+                        {
+                          onSuccess: () => toast.success("All calls deleted"),
+                          onError: () => toast.error("Failed to delete calls"),
+                        }
+                      );
+                    }}
+                  >
+                    Delete All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <Button onClick={() => setShowAddForm(true)} className="gap-2 sm:ml-auto">
             <Plus className="h-4 w-4" />
             Log Call

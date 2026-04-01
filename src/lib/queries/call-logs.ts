@@ -113,7 +113,7 @@ export function useCreateCallLog(orgId: string | undefined) {
 
       if (error) throw error;
 
-      // Fire Telegram notification (non-blocking, best-effort)
+      // Fire Telegram notification and store message_id for future deletion
       fetch("/api/notify/telegram", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,7 +126,18 @@ export function useCreateCallLog(orgId: string | undefined) {
           call_direction: data.call_direction,
           is_sorted: data.is_sorted,
         }),
-      }).catch(() => {});
+      })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.message_id) {
+            supabase
+              .from("call_logs")
+              .update({ telegram_message_id: res.message_id })
+              .eq("id", data.id)
+              .then(() => {});
+          }
+        })
+        .catch(() => {});
 
       return data;
     },
@@ -194,10 +205,29 @@ export function useUpdateCallLog(orgId?: string) {
         .from("call_logs")
         .update(updates)
         .eq("id", id)
-        .select()
+        .select("*, telegram_message_id")
         .single();
 
       if (error) throw error;
+
+      // Sync changes to Telegram message (best-effort)
+      if (data.telegram_message_id) {
+        fetch("/api/notify/telegram/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message_id: data.telegram_message_id,
+            call_log_id: id,
+            phone_number: data.phone_number,
+            caller_name: data.caller_name,
+            question: data.question,
+            answer: data.answer,
+            call_direction: data.call_direction,
+            is_sorted: data.is_sorted,
+          }),
+        }).catch(() => {});
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -213,12 +243,80 @@ export function useDeleteCallLog() {
   return useMutation({
     mutationFn: async (id: string) => {
       const supabase = createClient();
+
+      // Fetch telegram_message_id before deleting
+      const { data: log } = await supabase
+        .from("call_logs")
+        .select("telegram_message_id")
+        .eq("id", id)
+        .single();
+
       const { error } = await supabase
         .from("call_logs")
         .delete()
         .eq("id", id);
 
       if (error) throw error;
+
+      // Delete from Telegram (best-effort)
+      if (log?.telegram_message_id) {
+        fetch("/api/notify/telegram/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message_id: log.telegram_message_id }),
+        }).catch(() => {});
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["call-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["call-log-stats"] });
+    },
+  });
+}
+
+export function useDeleteAllCallLogs() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      orgId,
+      date,
+    }: {
+      orgId: string;
+      date: Date;
+    }) => {
+      const supabase = createClient();
+      const dayStart = startOfDay(date).toISOString();
+      const dayEnd = endOfDay(date).toISOString();
+
+      // Fetch telegram_message_ids before deleting
+      const { data: logs } = await supabase
+        .from("call_logs")
+        .select("telegram_message_id")
+        .eq("organization_id", orgId)
+        .gte("call_date", dayStart)
+        .lt("call_date", dayEnd)
+        .not("telegram_message_id", "is", null);
+
+      const { error } = await supabase
+        .from("call_logs")
+        .delete()
+        .eq("organization_id", orgId)
+        .gte("call_date", dayStart)
+        .lt("call_date", dayEnd);
+
+      if (error) throw error;
+
+      // Delete from Telegram (best-effort, parallel)
+      if (logs?.length) {
+        for (const log of logs) {
+          fetch("/api/notify/telegram/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message_id: log.telegram_message_id }),
+          }).catch(() => {});
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["call-logs"] });
